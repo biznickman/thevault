@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "inngest-dev": "pnpm dlx inngest-cli@latest dev -u http://localhost:3000/api/inngest"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.95.3",
+    "inngest": "^3.52.0",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"
