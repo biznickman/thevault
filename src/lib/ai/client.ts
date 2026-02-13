@@ -43,11 +43,14 @@ const ellisReplyPrompt = [
 interface ProviderSettings {
   endpoint: string;
   apiKey: string;
-  model: string;
+  defaultModel: string;
   headers?: Record<string, string>;
   embeddingsEndpoint: string;
   embeddingModel: string;
 }
+
+type AgentModelKey = "knox" | "ellis" | "sloane" | "vaughn";
+type TaskModelKey = "agent_reply" | "intent_classifier" | "memory_extractor";
 
 function getProviderSettings(): ProviderSettings | null {
   const provider = (process.env.AI_PROVIDER ?? "openai").toLowerCase();
@@ -61,7 +64,7 @@ function getProviderSettings(): ProviderSettings | null {
     return {
       endpoint: openRouterEndpoint,
       apiKey,
-      model: process.env.OPENROUTER_MODEL ?? "openai/gpt-4.1-mini",
+      defaultModel: process.env.OPENROUTER_MODEL ?? "openai/gpt-4.1-mini",
       embeddingsEndpoint: openRouterEmbeddingsEndpoint,
       embeddingModel:
         process.env.OPENROUTER_EMBEDDING_MODEL ?? "openai/text-embedding-3-small",
@@ -80,10 +83,31 @@ function getProviderSettings(): ProviderSettings | null {
   return {
     endpoint: openAiEndpoint,
     apiKey,
-    model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
+    defaultModel: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
     embeddingsEndpoint: openAiEmbeddingsEndpoint,
     embeddingModel: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small",
   };
+}
+
+function resolveModel(task: TaskModelKey, agent?: AgentModelKey): string | null {
+  const taskEnv: Record<TaskModelKey, string | undefined> = {
+    agent_reply: process.env.MODEL_AGENT_REPLY,
+    intent_classifier: process.env.MODEL_INTENT_CLASSIFIER,
+    memory_extractor: process.env.MODEL_MEMORY_EXTRACTOR,
+  };
+
+  const agentEnv: Record<AgentModelKey, string | undefined> = {
+    knox: process.env.MODEL_KNOX,
+    ellis: process.env.MODEL_ELLIS,
+    sloane: process.env.MODEL_SLOANE,
+    vaughn: process.env.MODEL_VAUGHN,
+  };
+
+  if (agent && agentEnv[agent]) {
+    return agentEnv[agent] ?? null;
+  }
+
+  return taskEnv[task] ?? null;
 }
 
 function parseClassification(content: string): IntentClassification | null {
@@ -115,6 +139,7 @@ async function requestChatCompletion(params: {
   responseType: "json" | "text";
   temperature?: number;
   maxTokens?: number;
+  model?: string;
 }): Promise<string | null> {
   const settings = getProviderSettings();
   if (!settings) {
@@ -129,7 +154,7 @@ async function requestChatCompletion(params: {
       ...settings.headers,
     },
     body: JSON.stringify({
-      model: settings.model,
+      model: params.model ?? settings.defaultModel,
       temperature: params.temperature ?? 0,
       max_tokens: params.maxTokens ?? 350,
       ...(params.responseType === "json"
@@ -157,12 +182,15 @@ async function requestChatCompletion(params: {
 export async function classifyIntentWithModel(
   messageText: string,
 ): Promise<IntentClassification | null> {
+  const model = resolveModel("intent_classifier");
+
   const content = await requestChatCompletion({
     system: classificationSystemPrompt,
     user: `Message: ${messageText}`,
     responseType: "json",
     temperature: 0,
     maxTokens: 120,
+    model: model ?? undefined,
   });
 
   if (!content) {
@@ -187,12 +215,15 @@ function normalizeExtractedFact(fact: ExtractedFact): ExtractedFact | null {
 export async function extractMemoryFromConversation(
   messageTranscript: string,
 ): Promise<MemoryExtraction | null> {
+  const model = resolveModel("memory_extractor");
+
   const content = await requestChatCompletion({
     system: memoryExtractionPrompt,
     user: messageTranscript,
     responseType: "json",
     temperature: 0,
     maxTokens: 600,
+    model: model ?? undefined,
   });
 
   if (!content) {
@@ -236,6 +267,8 @@ export async function generateEllisReplyWithContext(params: {
   context: MemberContext;
   instructionPack?: string;
 }): Promise<string | null> {
+  const model = resolveModel("agent_reply", "ellis");
+
   const promptContext = {
     memberFirstName: params.memberFirstName,
     summary: params.context.summary,
@@ -255,6 +288,7 @@ export async function generateEllisReplyWithContext(params: {
     responseType: "text",
     temperature: 0.3,
     maxTokens: 180,
+    model: model ?? undefined,
   });
 
   if (!content) {

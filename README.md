@@ -56,6 +56,20 @@ Optional (AI fallback classifier):
   - `OPENROUTER_EMBEDDING_MODEL`
   - `OPENROUTER_SITE_URL`
 
+Optional (per-agent/task model overrides):
+- `MODEL_KNOX`
+- `MODEL_ELLIS`
+- `MODEL_SLOANE`
+- `MODEL_VAUGHN`
+- `MODEL_AGENT_REPLY`
+- `MODEL_INTENT_CLASSIFIER`
+- `MODEL_MEMORY_EXTRACTOR`
+
+Model selection precedence:
+1. agent-specific override (for replies), e.g. `MODEL_ELLIS`
+2. task-specific override, e.g. `MODEL_INTENT_CLASSIFIER`
+3. provider default (`OPENAI_MODEL` or `OPENROUTER_MODEL`)
+
 3. Create tables in Supabase SQL editor:
 - Run `/Users/nicholasoneill/Dev/thevault/supabase/schema.sql`
 
