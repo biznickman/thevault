@@ -12,6 +12,7 @@ Use this structure for every new function:
 - `invites/`: invite lifecycle and outbound invite actions
 - `sms/`: inbound SMS routing and message interpretation
 - `members/`: member transitions and concierge handoffs
+- `memory/`: memory extraction, summaries, and durable fact updates
 - `events/`: event invitations, reminders, and attendance workflows (future)
 - `ops/`: internal maintenance and guardrail jobs (future)
 
